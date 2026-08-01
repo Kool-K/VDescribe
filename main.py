@@ -5,7 +5,7 @@ import re
 import time
 import random
 from urllib.parse import urlparse, parse_qs
-from typing import Optional, Tuple
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,13 +14,6 @@ from dotenv import load_dotenv
 import yt_dlp
 from google import genai
 from google.genai import types
-
-# youtube-transcript-api (fallback when yt-dlp is blocked)
-try:
-    from youtube_transcript_api import YouTubeTranscriptApi
-    TRANSCRIPT_API_AVAILABLE = True
-except ImportError:
-    TRANSCRIPT_API_AVAILABLE = False
 
 # Add .local_bin to PATH for Render deployment (ffmpeg and deno binaries)
 local_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.local_bin')
@@ -209,10 +202,7 @@ def process_video_multimodal(video_id: str, cookies_path: Optional[str] = None):
                     break
 
     except Exception as e:
-        # Return the error string instead of raising — caller decides whether to fall back
-        err = str(e)
-        print(f"yt-dlp download failed: {err}")
-        return None, None, False, err
+        raise HTTPException(status_code=500, detail=f"Failed to download media: {str(e)}")
 
     try:
         uploaded_file = client.files.upload(file=media_path)
@@ -224,13 +214,13 @@ def process_video_multimodal(video_id: str, cookies_path: Optional[str] = None):
         if uploaded_file.state.name == "FAILED":
             raise Exception("File processing failed on Gemini servers.")
 
-        return uploaded_file, media_path, use_video, None
+        return uploaded_file, media_path, use_video
+    except HTTPException:
+        raise
     except Exception as e:
         if os.path.exists(media_path):
             os.remove(media_path)
-        err = str(e)
-        print(f"Gemini upload failed: {err}")
-        return None, None, False, err
+        raise HTTPException(status_code=500, detail=f"Failed to upload media to Gemini: {str(e)}")
 
 
 def get_video_metadata(video_id: str) -> dict:
@@ -352,32 +342,6 @@ def generate_with_gemini_fallback(contents, config):
     )
 
 
-def get_transcript(video_id: str) -> Optional[str]:
-    """
-    Fallback: fetch the YouTube transcript (captions) for a video.
-    Works without downloading; returns timestamped text or None on failure.
-    Compatible with youtube-transcript-api v1.x (instance-based API).
-    """
-    if not TRANSCRIPT_API_AVAILABLE:
-        return None
-    try:
-        ytt = YouTubeTranscriptApi()
-        transcript = ytt.fetch(video_id)
-
-        lines = []
-        for snippet in transcript:
-            text = snippet.text.replace('\n', ' ').strip()
-            if text:
-                secs = int(snippet.start)
-                mm, ss = divmod(secs, 60)
-                lines.append(f"[{mm:02d}:{ss:02d}] {text}")
-
-        return '\n'.join(lines) if lines else None
-    except Exception as e:
-        print(f"Transcript API failed: {e}")
-        return None
-
-
 # --- Main Endpoint ---
 
 @app.post("/summarize")
@@ -392,56 +356,14 @@ async def summarize(request: SummarizeRequest):
     # Write cookies file from env var (if set) to authenticate yt-dlp on cloud
     cookies_path = write_cookies_file()
 
-    # ── Strategy 1: yt-dlp multimodal (video or audio) ─────────────────────
-    uploaded_file, media_path, is_video, yt_error = process_video_multimodal(video_id, cookies_path)
-    use_transcript = uploaded_file is None  # fall back if yt-dlp failed
-
-    if use_transcript:
-        print(f"yt-dlp failed ({yt_error}). Falling back to transcript API...")
-
-        # ── Strategy 2: transcript-based analysis ────────────────────────────
-        transcript_text = get_transcript(video_id)
-        if not transcript_text:
-            # Both strategies failed — surface the yt-dlp error
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    f"Could not download the video ({yt_error}) and this video "
-                    "has no available transcript/captions. Please try another video."
-                )
-            )
+    # 1. Process Video (multimodal: video or audio)
+    uploaded_file, media_path, is_video = process_video_multimodal(video_id, cookies_path)
 
     media_type_label = "video" if is_video else "audio"
 
-    # 2. Summarize with Gemini ─────────────────────────────────────────────
+    # 2. Summarize with Gemini using structured output
     try:
-        if use_transcript:
-            # Transcript-based prompt (text only — no media upload)
-            prompt = f"""You are a professional video analyst. Below is the full timestamped transcript of a YouTube video. Analyse it carefully and provide a comprehensive analysis.
-
-For each highlight, use the timestamp format [MM:SS] already present in the transcript to identify exactly when each key topic occurs.
-
-Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (without timestamps), a detailed multi-paragraph summary using <p> HTML tags, and a powerful 1-sentence quick insight.
-
---- TRANSCRIPT ---
-{transcript_text}
---- END OF TRANSCRIPT ---"""
-
-            response, model_used = generate_with_gemini_fallback(
-                contents=[
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=prompt)],
-                    ),
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=VideoAnalysis,
-                ),
-            )
-        else:
-            # Multimodal prompt (video or audio file uploaded to Gemini)
-            prompt = f"""You are a professional video analyst. {"Watch and listen to" if is_video else "Listen to"} this {media_type_label} carefully and provide a comprehensive analysis.
+        prompt = f"""You are a professional video analyst. {"Watch and listen to" if is_video else "Listen to"} this {media_type_label} carefully and provide a comprehensive analysis.
 
 For each highlight, provide the approximate timestamp (MM:SS format) where that topic or point is discussed in the {media_type_label}. If you cannot determine the exact timestamp, estimate based on the flow of the content.
 
@@ -449,24 +371,24 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
 
 {"Pay attention to both visual elements (slides, diagrams, code, demonstrations) and the spoken content." if is_video else "Focus on the spoken content and discussion points."}"""
 
-            response, model_used = generate_with_gemini_fallback(
-                contents=[
-                    types.Content(
-                        role="user",
-                        parts=[
-                            types.Part.from_uri(
-                                file_uri=uploaded_file.uri,
-                                mime_type=uploaded_file.mime_type,
-                            ),
-                            types.Part.from_text(text=prompt),
-                        ],
-                    ),
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=VideoAnalysis,
+        response, model_used = generate_with_gemini_fallback(
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_uri(
+                            file_uri=uploaded_file.uri,
+                            mime_type=uploaded_file.mime_type,
+                        ),
+                        types.Part.from_text(text=prompt),
+                    ],
                 ),
-            )
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=VideoAnalysis,
+            ),
+        )
 
         result = json.loads(response.text)
 
@@ -483,14 +405,14 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
     finally:
-        # Cleanup local and remote files (only if yt-dlp path was used)
-        if media_path and os.path.exists(media_path):
+        # Cleanup local and remote files
+        if os.path.exists(media_path):
             os.remove(media_path)
-        if uploaded_file is not None:
-            try:
+        try:
+            if 'uploaded_file' in locals():
                 client.files.delete(name=uploaded_file.name)
-            except Exception as e:
-                print(f"Failed to delete remote file: {e}")
+        except Exception as e:
+            print(f"Failed to delete remote file: {e}")
 
     # 3. Translate with Sarvam if needed
     lang_map = {
@@ -545,8 +467,7 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
 
     # 5. Add processing metadata
     result["video_id"] = video_id
-    # is_multimodal = True only if we used yt-dlp video (not audio, not transcript)
-    result["is_multimodal"] = is_video and not use_transcript
+    result["is_multimodal"] = is_video
     result["model_used"] = model_used
 
     return result
