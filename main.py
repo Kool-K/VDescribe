@@ -539,9 +539,7 @@ async def chat_with_video(request: ChatRequest):
     )
 
     try:
-        # We use flash because it's fast and excellent at multimodal RAG
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
+        response, model_used = generate_with_gemini_fallback(
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
