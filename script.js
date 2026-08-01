@@ -535,20 +535,28 @@ document.addEventListener('DOMContentLoaded', () => {
             detailedSummary.innerHTML = html;
         }
 
-        // 4. Initialize YouTube Player or show thumbnail fallback
+        // 4. Initialize YouTube Player with thumbnail as a loading placeholder
         if (data.video_id) {
+            // Always show the player container and title immediately
+            if (playerContainer) playerContainer.classList.remove('hidden');
+            if (videoMetadataContainer) videoMetadataContainer.classList.add('hidden');
+            if (videoTitle) videoTitle.textContent = data.title || "Video Analysis";
+
             if (ytPlayerReady) {
                 initPlayer(data.video_id);
             } else {
+                // Store it — onYouTubeIframeAPIReady will pick it up
                 pendingVideoId = data.video_id;
+                // Show a thumbnail poster inside the player div until the player loads
+                const playerDiv = document.getElementById('yt-player');
+                if (playerDiv && data.thumbnail_url) {
+                    playerDiv.style.backgroundImage = `url('${data.thumbnail_url}')`;
+                    playerDiv.style.backgroundSize = 'cover';
+                    playerDiv.style.backgroundPosition = 'center';
+                }
             }
-            // Set title
-            if (videoTitle) videoTitle.textContent = data.title || "Video Analysis";
-
-            // Hide the static thumbnail fallback since we have the player
-            if (videoMetadataContainer) videoMetadataContainer.classList.add('hidden');
         } else if (data.title || data.thumbnail_url) {
-            // Fallback: show static thumbnail
+            // Fallback: show static thumbnail only if no video_id
             if (playerContainer) playerContainer.classList.add('hidden');
             if (videoMetadataContainer) {
                 videoMetadataContainer.classList.remove('hidden');
