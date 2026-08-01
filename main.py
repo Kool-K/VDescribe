@@ -66,11 +66,22 @@ class Highlight(BaseModel):
     text: str = Field(description="A concise, informative highlight sentence.")
 
 class VideoAnalysis(BaseModel):
-    """Structured analysis of a video."""
-    highlights: list[Highlight] = Field(description="Exactly 4 key highlights from the video, each with a timestamp.")
-    key_points: list[str] = Field(description="Exactly 5 concise, standalone key points that explain the most useful concepts, facts, or takeaways from the video. Do not include timestamps.")
-    summary: str = Field(description="A detailed multi-paragraph summary of the video content. Use <p> tags to separate paragraphs, e.g. '<p>First paragraph...</p><p>Second paragraph...</p>'")
-    quick_insight: str = Field(description="A powerful, memorable 1-sentence insight distilled from the video.")
+    highlights: List[dict]
+    key_points: List[str]
+    summary: str
+    quick_insight: str
+    title: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    video_id: Optional[str] = None
+    is_multimodal: Optional[bool] = None
+    model_used: Optional[str] = None
+    gemini_file_name: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    file_name: str
+    question: str
+    language: str
+    history: List[dict] = []
 
 # --- Request Model ---
 
@@ -405,14 +416,10 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
     finally:
-        # Cleanup local and remote files
+        # Cleanup local file only. We keep the remote file on Gemini for the Chat feature.
+        # Gemini files automatically expire and are deleted after 48 hours.
         if os.path.exists(media_path):
             os.remove(media_path)
-        try:
-            if 'uploaded_file' in locals():
-                client.files.delete(name=uploaded_file.name)
-        except Exception as e:
-            print(f"Failed to delete remote file: {e}")
 
     # 3. Translate with Sarvam if needed
     lang_map = {
@@ -469,8 +476,88 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
     result["video_id"] = video_id
     result["is_multimodal"] = is_video
     result["model_used"] = model_used
+    if 'uploaded_file' in locals():
+        result["gemini_file_name"] = uploaded_file.name
 
     return result
+
+
+@app.post("/chat")
+async def chat_with_video(request: ChatRequest):
+    """Answers questions based strictly on the uploaded video/audio file."""
+    if not request.file_name:
+        raise HTTPException(status_code=400, detail="Missing file_name")
+
+    # 1. Translate question to English if needed (Gemini performs best with English instructions)
+    # Wait, Gemini natively understands Hindi/Marathi very well, especially with multimodal context.
+    # But for maximum accuracy in extracting facts, we can just send the raw question.
+    # Actually, to follow the translation pattern, we'll translate the user's question to English first if they selected Hindi/Marathi, OR just let Gemini handle it.
+    # Gemini handles Hindi/Marathi natively, but our strict system prompt might be in English.
+    # Let's pass the question directly to Gemini, and then translate the response via Sarvam if needed.
+    
+    target_lang = None
+    lang_map = {
+        "Hindi": "hi-IN",
+        "Marathi": "mr-IN"
+    }
+    if request.language in lang_map:
+        target_lang = lang_map[request.language]
+
+    try:
+        # Retrieve the file from Gemini
+        file_info = client.files.get(name=request.file_name)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="File not found or expired. Please re-summarize the video.")
+
+    # Convert history format for Gemini
+    contents = []
+    
+    # Add history
+    for msg in request.history:
+        role = "user" if msg.get("role") == "user" else "model"
+        contents.append(
+            types.Content(role=role, parts=[types.Part.from_text(text=msg.get("text", ""))])
+        )
+
+    # Add the current prompt with the file context
+    # Only add the file to the current (last) user message to avoid duplicate file attachments
+    contents.append(
+        types.Content(
+            role="user",
+            parts=[
+                types.Part.from_uri(file_uri=file_info.uri, mime_type=file_info.mime_type),
+                types.Part.from_text(text=request.question)
+            ]
+        )
+    )
+
+    system_instruction = (
+        "You are a helpful AI assistant answering questions about a provided video/audio file. "
+        "Answer STRICTLY based on the provided media context. "
+        "If the answer is not contained in the media, say 'I cannot find the answer to this in the video.' "
+        "Do NOT provide generic outside knowledge. Be concise and direct."
+    )
+
+    try:
+        # We use flash because it's fast and excellent at multimodal RAG
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+            )
+        )
+        answer_text = response.text
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate answer: {str(e)}")
+
+    # Translate answer if needed
+    if target_lang:
+        answer_text = translate_with_sarvam(answer_text, target_lang)
+
+    return {"answer": answer_text}
+
 
 
 # Mount static files to serve the frontend via FastAPI

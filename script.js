@@ -65,6 +65,10 @@ tailwind.config = {
 let ytPlayer = null;
 let ytPlayerReady = false;
 let pendingVideoId = null;
+let lastAnalysisData = null;
+let selectedLanguage = 'English'; 
+let geminiFileName = null;
+let chatHistory = [];
 
 // This function is called by the YouTube Iframe API when it's ready
 function onYouTubeIframeAPIReady() {
@@ -572,5 +576,135 @@ document.addEventListener('DOMContentLoaded', () => {
             quickInsightText.innerText = data.quick_insight;
         }
         updateLocalizedLabels(selectedLanguage);
+
+        // 6. Chat widget setup
+        if (data.gemini_file_name) {
+            geminiFileName = data.gemini_file_name;
+            chatHistory = []; // reset history
+            const chatWidgetContainer = document.getElementById('chat-widget-container');
+            const chatHistoryEl = document.getElementById('chat-history');
+            if (chatWidgetContainer) {
+                chatWidgetContainer.classList.remove('hidden');
+                // Reset chat UI
+                if (chatHistoryEl) {
+                    chatHistoryEl.innerHTML = `
+                        <div class="flex flex-col gap-1 items-start">
+                            <span class="text-xs font-black text-on-background/50 uppercase">VDescribe AI</span>
+                            <div class="bg-surface border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                Ask me anything about the contents of this video. I've analyzed the raw audio and visuals!
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
     }
 });
+
+// --- Chat Widget Logic ---
+const chatToggleBtn = document.getElementById('chat-toggle-btn');
+const closeChatBtn = document.getElementById('close-chat-btn');
+const chatPanel = document.getElementById('chat-panel');
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+const chatSubmitBtn = document.getElementById('chat-submit-btn');
+
+if (chatToggleBtn && chatPanel && closeChatBtn) {
+    chatToggleBtn.addEventListener('click', () => {
+        chatPanel.classList.toggle('hidden');
+    });
+    closeChatBtn.addEventListener('click', () => {
+        chatPanel.classList.add('hidden');
+    });
+}
+
+function appendMessage(role, text) {
+    const chatHistoryEl = document.getElementById('chat-history');
+    if (!chatHistoryEl) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex flex-col gap-1 ' + (role === 'user' ? 'items-end' : 'items-start');
+    
+    const label = document.createElement('span');
+    label.className = 'text-xs font-black text-on-background/50 uppercase';
+    label.innerText = role === 'user' ? 'You' : 'VDescribe AI';
+
+    const bubble = document.createElement('div');
+    // Brutalist styling for chat bubbles
+    if (role === 'user') {
+        bubble.className = 'bg-primary-container border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-on-background';
+    } else {
+        bubble.className = 'bg-surface border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]';
+    }
+    bubble.innerText = text;
+
+    wrapper.append(label, bubble);
+    chatHistoryEl.appendChild(wrapper);
+    chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+}
+
+if (chatForm) {
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text || !geminiFileName) return;
+
+        // Optimistically add user message
+        appendMessage('user', text);
+        chatInput.value = '';
+        chatSubmitBtn.disabled = true;
+        chatSubmitBtn.classList.add('opacity-50');
+
+        const chatHistoryEl = document.getElementById('chat-history');
+
+        // Add thinking placeholder
+        const thinkingWrapper = document.createElement('div');
+        thinkingWrapper.id = 'chat-thinking';
+        thinkingWrapper.className = 'flex flex-col gap-1 items-start';
+        thinkingWrapper.innerHTML = `
+            <span class="text-xs font-black text-on-background/50 uppercase">VDescribe AI</span>
+            <div class="bg-surface border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] italic text-on-background/70">
+                Thinking...
+            </div>
+        `;
+        chatHistoryEl.appendChild(thinkingWrapper);
+        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_name: geminiFileName,
+                    question: text,
+                    language: selectedLanguage, // pass the currently selected language
+                    history: chatHistory
+                })
+            });
+
+            const data = await response.json();
+            
+            // Remove thinking placeholder
+            const thinkingEl = document.getElementById('chat-thinking');
+            if (thinkingEl) thinkingEl.remove();
+
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to get an answer.');
+            }
+
+            // Append response and save to history
+            appendMessage('model', data.answer);
+            chatHistory.push({ role: 'user', text: text });
+            chatHistory.push({ role: 'model', text: data.answer });
+
+        } catch (error) {
+            // Remove thinking placeholder
+            const thinkingEl = document.getElementById('chat-thinking');
+            if (thinkingEl) thinkingEl.remove();
+            
+            appendMessage('model', `Error: ${error.message}`);
+        } finally {
+            chatSubmitBtn.disabled = false;
+            chatSubmitBtn.classList.remove('opacity-50');
+        }
+    });
+}

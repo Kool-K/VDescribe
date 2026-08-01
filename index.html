@@ -214,6 +214,53 @@
             </div>
         </section>
     </main>
+
+    <!-- Floating Chat Widget (Hidden by default) -->
+    <div id="chat-widget-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end hidden no-print">
+        
+        <!-- Chat Panel -->
+        <div id="chat-panel" class="hidden mb-4 bg-surface border-4 border-on-background shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-[350px] sm:w-[400px] h-[500px] flex flex-col">
+            <!-- Header -->
+            <div class="bg-on-background text-primary-container p-4 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined">forum</span>
+                    <h3 class="font-black uppercase tracking-widest text-lg">Chat with Video</h3>
+                </div>
+                <button id="close-chat-btn" class="hover:text-white transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <!-- Chat History -->
+            <div id="chat-history" class="flex-grow p-4 overflow-y-auto space-y-4 bg-surface-container-high font-medium text-sm">
+                <!-- Initial greeting -->
+                <div class="flex flex-col gap-1 items-start">
+                    <span class="text-xs font-black text-on-background/50 uppercase">VDescribe AI</span>
+                    <div class="bg-surface border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        Ask me anything about the contents of this video. I've analyzed the raw audio and visuals!
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Area -->
+            <form id="chat-form" class="border-t-4 border-on-background p-4 bg-surface flex gap-2">
+                <input type="text" id="chat-input" required placeholder="Type your question..." 
+                       class="flex-grow bg-white border-2 border-on-background p-3 focus:outline-none focus:bg-[#FACC15]/20 font-bold" />
+                <button type="submit" id="chat-submit-btn" 
+                        class="bg-tertiary text-on-tertiary px-4 border-2 border-on-background font-black uppercase hover:bg-on-background hover:text-surface transition-none active:translate-y-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <span class="material-symbols-outlined pt-1">send</span>
+                </button>
+            </form>
+        </div>
+        
+        <!-- Floating Toggle Button -->
+        <button id="chat-toggle-btn" class="bg-tertiary text-on-tertiary border-4 border-on-background shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] w-16 h-16 rounded-full flex items-center justify-center hover:bg-on-background hover:text-surface transition-none active:translate-y-1 group relative">
+            <span class="material-symbols-outlined text-3xl">chat</span>
+            <!-- Notification Dot (optional, for later) -->
+            <span class="absolute top-0 right-0 w-4 h-4 bg-[#EF4444] border-2 border-on-background rounded-full hidden"></span>
+        </button>
+    </div>
+
     <!-- Footer -->
     <footer
         class="bg-[#000000] dark:bg-[#000000] text-[#FACC15] dark:text-[#FACC15] font-['Space_Grotesk'] text-sm font-bold uppercase docked full-width bottom-0 flex flex-col md:flex-row justify-between items-center w-full px-8 py-12 gap-6 no-print">
