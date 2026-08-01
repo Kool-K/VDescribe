@@ -163,7 +163,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const quickInsightText = document.getElementById('quick-insight-text');
     const quickInsightHeading = document.getElementById('quick-insight-heading');
     const quickInsightEnglishLabel = document.getElementById('quick-insight-english-label');
-    const multimodalBadge = document.getElementById('multimodal-badge');
 
     // Language Selection Logic
     langButtons.forEach(btn => {
@@ -238,7 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (detailedSummary) detailedSummary.innerHTML = '';
         if (playerContainer) playerContainer.classList.add('hidden');
         if (videoMetadataContainer) videoMetadataContainer.classList.add('hidden');
-        if (multimodalBadge) multimodalBadge.classList.add('hidden');
 
         const resultsSection = document.getElementById('results-section');
         if (resultsSection) {
@@ -574,14 +572,5 @@ document.addEventListener('DOMContentLoaded', () => {
             quickInsightText.innerText = data.quick_insight;
         }
         updateLocalizedLabels(selectedLanguage);
-
-        // 6. Show multimodal badge if applicable
-        if (multimodalBadge) {
-            if (data.is_multimodal) {
-                multimodalBadge.classList.remove('hidden');
-            } else {
-                multimodalBadge.classList.add('hidden');
-            }
-        }
     }
 });
