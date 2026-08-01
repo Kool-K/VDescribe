@@ -114,13 +114,16 @@ def write_cookies_file() -> Optional[str]:
 def get_video_duration(video_id: str, cookies_path: Optional[str] = None) -> Optional[int]:
     """Get video duration in seconds using yt-dlp metadata extraction."""
     try:
+        # Use 'web' client when cookies are present — android/mweb don't support cookies.
+        # Fall back to mweb+web when no cookies (for unauthenticated cloud IP bypass).
+        player_client = ['web'] if cookies_path else ['mweb', 'web']
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['mweb', 'android', 'web']
+                    'player_client': player_client
                 }
             }
         }
@@ -149,12 +152,15 @@ def process_video_multimodal(video_id: str, cookies_path: Optional[str] = None):
     duration = get_video_duration(video_id, cookies_path)
     use_video = duration is not None and duration <= 1800  # 30 minutes
 
+    # Use 'web' client when cookies are present — android/mweb don't support cookies.
+    # Fall back to mweb+web when no cookies (for unauthenticated cloud IP bypass).
+    player_client = ['web'] if cookies_path else ['mweb', 'web']
     common_opts = {
         'nocheckcertificate': True,
         'quiet': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['mweb', 'android', 'web']
+                'player_client': player_client
             }
         }
     }
