@@ -7,3 +7,4 @@ yt-dlp-ejs
 google-genai
 requests
 python-multipart
+youtube-transcript-api

@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import requests
 import re
@@ -12,14 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-import yt_dlp
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
 from google import genai
 from google.genai import types
-
-# Add local bin to PATH for Render deployment (ffmpeg and deno)
-local_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.local_bin')
-if os.path.exists(local_bin):
-    os.environ["PATH"] = f"{local_bin}{os.pathsep}{os.environ.get('PATH', '')}"
 
 # Load environment variables
 load_dotenv()
@@ -80,6 +74,46 @@ class SummarizeRequest(BaseModel):
 
 # --- Helper Functions ---
 
+def get_transcript(video_id: str) -> str:
+    """
+    Fetch the transcript for a YouTube video using youtube-transcript-api.
+    Tries English first, then any available language.
+    Returns formatted transcript text with approximate timestamps.
+    """
+    try:
+        # Try to get English transcript first, then fall back to any available
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+
+        try:
+            transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB', 'en-IN'])
+        except NoTranscriptFound:
+            # Fall back to the first available transcript (auto-generated or manual)
+            transcript = transcript_list.find_generated_transcript(['en'])
+
+        raw = transcript.fetch()
+
+        # Format with timestamps so Gemini can generate highlights with MM:SS
+        lines = []
+        for entry in raw:
+            secs = int(entry.get('start', 0))
+            mm, ss = divmod(secs, 60)
+            text = entry.get('text', '').replace('\n', ' ').strip()
+            if text:
+                lines.append(f"[{mm:02d}:{ss:02d}] {text}")
+
+        return '\n'.join(lines)
+
+    except TranscriptsDisabled:
+        raise HTTPException(
+            status_code=422,
+            detail="This video has transcripts disabled. Please try a different video."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not fetch transcript for this video: {str(e)}. Try a video with captions enabled."
+        )
+
 def get_video_id(url: str) -> Optional[str]:
     """Extract YouTube video ID from URL."""
     parsed_url = urlparse(url)
@@ -96,106 +130,7 @@ def get_video_id(url: str) -> Optional[str]:
     return None
 
 
-def get_video_duration(video_id: str) -> Optional[int]:
-    """Get video duration in seconds using yt-dlp metadata extraction."""
-    try:
-        ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['mweb', 'android', 'web']
-                }
-            }
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            return info.get('duration')
-    except Exception as e:
-        print(f"Could not get video duration: {e}")
-        return None
 
-
-def process_video_multimodal(video_id: str):
-    """
-    Download video/audio using yt-dlp and upload to Gemini.
-    - For videos <= 30 minutes: downloads low-res MP4 (video + audio) for true multimodal analysis.
-    - For videos > 30 minutes: falls back to audio-only (MP3) to save bandwidth.
-    Returns (uploaded_file, local_path, is_video).
-    """
-    temp_dir = "temp"
-    os.makedirs(temp_dir, exist_ok=True)
-
-    duration = get_video_duration(video_id)
-    use_video = duration is not None and duration <= 1800  # 30 minutes
-
-    common_opts = {
-        'nocheckcertificate': True,
-        'quiet': True,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['mweb', 'android', 'web']
-            }
-        }
-    }
-
-    try:
-        if use_video:
-            # Download lowest-quality MP4 with audio for multimodal analysis
-            ydl_opts = {
-                **common_opts,
-                'format': 'worst[ext=mp4]/worstvideo[ext=mp4]+worstaudio[ext=m4a]/worst',
-                'outtmpl': os.path.join(temp_dir, f"{video_id}.%(ext)s"),
-                'merge_output_format': 'mp4',
-            }
-            expected_ext = 'mp4'
-        else:
-            # Fallback: audio-only for long videos
-            ydl_opts = {
-                **common_opts,
-                'format': 'ba[ext=m4a]/ba',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '64',
-                }],
-                'outtmpl': os.path.join(temp_dir, f"{video_id}.%(ext)s"),
-            }
-            expected_ext = 'mp3'
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
-
-        media_path = os.path.join(temp_dir, f"{video_id}.{expected_ext}")
-
-        # If expected file doesn't exist, try to find any downloaded file
-        if not os.path.exists(media_path):
-            for f in os.listdir(temp_dir):
-                if f.startswith(video_id):
-                    media_path = os.path.join(temp_dir, f)
-                    break
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to download media: {str(e)}")
-
-    try:
-        uploaded_file = client.files.upload(file=media_path)
-
-        while uploaded_file.state.name == "PROCESSING":
-            time.sleep(2)
-            uploaded_file = client.files.get(name=uploaded_file.name)
-
-        if uploaded_file.state.name == "FAILED":
-            raise Exception("File processing failed on Gemini servers.")
-
-        return uploaded_file, media_path, use_video
-    except HTTPException:
-        raise
-    except Exception as e:
-        if os.path.exists(media_path):
-            os.remove(media_path)
-        raise HTTPException(status_code=500, detail=f"Failed to upload media to Gemini: {str(e)}")
 
 
 def get_video_metadata(video_id: str) -> dict:
@@ -328,32 +263,28 @@ async def summarize(request: SummarizeRequest):
     if not video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL.")
 
-    # 1. Process Video (multimodal: video or audio)
-    uploaded_file, media_path, is_video = process_video_multimodal(video_id)
-
-    media_type_label = "video" if is_video else "audio"
+    # 1. Fetch transcript using youtube-transcript-api (no download, no bot blocking)
+    transcript_text = get_transcript(video_id)
 
     # 2. Summarize with Gemini using structured output
     try:
-        prompt = f"""You are a professional video analyst. {"Watch and listen to" if is_video else "Listen to"} this {media_type_label} carefully and provide a comprehensive analysis.
+        prompt = f"""You are a professional video analyst. Below is the full timestamped transcript of a YouTube video. Analyse it carefully and provide a comprehensive analysis.
 
-For each highlight, provide the approximate timestamp (MM:SS format) where that topic or point is discussed in the {media_type_label}. If you cannot determine the exact timestamp, estimate based on the flow of the content.
+For each highlight, use the timestamp format [MM:SS] already present in the transcript to identify exactly when each key topic occurs.
 
 Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (without timestamps), a detailed multi-paragraph summary using <p> HTML tags, and a powerful 1-sentence quick insight. Make the key points practical takeaways that complement, rather than repeat, the timestamped highlights.
 
-{"Pay attention to both visual elements (slides, diagrams, code, demonstrations) and the spoken content." if is_video else "Focus on the spoken content and discussion points."}"""
+Focus on the spoken content, arguments, and discussion points in the transcript.
+
+--- TRANSCRIPT ---
+{transcript_text}
+--- END OF TRANSCRIPT ---"""
 
         response, model_used = generate_with_gemini_fallback(
             contents=[
                 types.Content(
                     role="user",
-                    parts=[
-                        types.Part.from_uri(
-                            file_uri=uploaded_file.uri,
-                            mime_type=uploaded_file.mime_type,
-                        ),
-                        types.Part.from_text(text=prompt),
-                    ],
+                    parts=[types.Part.from_text(text=prompt)],
                 ),
             ],
             config=types.GenerateContentConfig(
@@ -374,17 +305,12 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
                     normalized.append({"timestamp": "00:00", "text": h})
             result["highlights"] = normalized
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
-    finally:
-        # Cleanup local and remote files
-        if os.path.exists(media_path):
-            os.remove(media_path)
-        try:
-            if 'uploaded_file' in locals():
-                client.files.delete(name=uploaded_file.name)
-        except Exception as e:
-            print(f"Failed to delete remote file: {e}")
+
+    result["is_multimodal"] = False
 
     # 3. Translate with Sarvam if needed
     lang_map = {
