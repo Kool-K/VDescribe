@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import requests
 import re
@@ -14,6 +15,11 @@ from dotenv import load_dotenv
 import yt_dlp
 from google import genai
 from google.genai import types
+
+# Add local bin to PATH for Render deployment (ffmpeg and deno)
+local_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.local_bin')
+if os.path.exists(local_bin):
+    os.environ["PATH"] = f"{local_bin}{os.pathsep}{os.environ.get('PATH', '')}"
 
 # Load environment variables
 load_dotenv()
