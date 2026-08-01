@@ -97,6 +97,11 @@ def get_video_duration(video_id: str) -> Optional[int]:
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb', 'android', 'web']
+                }
+            }
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -119,29 +124,37 @@ def process_video_multimodal(video_id: str):
     duration = get_video_duration(video_id)
     use_video = duration is not None and duration <= 1800  # 30 minutes
 
+    common_opts = {
+        'nocheckcertificate': True,
+        'quiet': True,
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['mweb', 'android', 'web']
+            }
+        }
+    }
+
     try:
         if use_video:
             # Download lowest-quality MP4 with audio for multimodal analysis
             ydl_opts = {
+                **common_opts,
                 'format': 'worst[ext=mp4]/worstvideo[ext=mp4]+worstaudio[ext=m4a]/worst',
                 'outtmpl': os.path.join(temp_dir, f"{video_id}.%(ext)s"),
-                'quiet': True,
-                'nocheckcertificate': True,
                 'merge_output_format': 'mp4',
             }
             expected_ext = 'mp4'
         else:
             # Fallback: audio-only for long videos
             ydl_opts = {
+                **common_opts,
                 'format': 'ba[ext=m4a]/ba',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '64',
                 }],
-                'nocheckcertificate': True,
                 'outtmpl': os.path.join(temp_dir, f"{video_id}.%(ext)s"),
-                'quiet': True,
             }
             expected_ext = 'mp3'
 
