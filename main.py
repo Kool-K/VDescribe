@@ -9,7 +9,7 @@ from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import yt_dlp
 from google import genai
@@ -60,22 +60,29 @@ app.add_middleware(
 
 # --- Pydantic Models for Structured Output ---
 
-class Highlight(BaseModel):
-    """A single key highlight from the video with its timestamp."""
-    timestamp: str = Field(description="Timestamp in MM:SS format where this highlight occurs in the video, e.g. '02:15'. Use '00:00' if uncertain.")
-    text: str = Field(description="A concise, informative highlight sentence.")
-
-class VideoAnalysis(BaseModel):
-    highlights: List[dict]
-    key_points: List[str]
-    summary: str
-    quick_insight: str
-    title: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    video_id: Optional[str] = None
-    is_multimodal: Optional[bool] = None
-    model_used: Optional[str] = None
-    gemini_file_name: Optional[str] = None
+# The Gemini Developer API does NOT support Pydantic models with
+# additionalProperties. We define the schema manually using types.Schema.
+GEMINI_VIDEO_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        "highlights": types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "timestamp": types.Schema(type=types.Type.STRING),
+                    "text": types.Schema(type=types.Type.STRING),
+                },
+            ),
+        ),
+        "key_points": types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(type=types.Type.STRING),
+        ),
+        "summary": types.Schema(type=types.Type.STRING),
+        "quick_insight": types.Schema(type=types.Type.STRING),
+    },
+)
 
 class ChatRequest(BaseModel):
     file_name: str
@@ -397,7 +404,7 @@ Provide exactly 4 key highlights with timestamps, exactly 5 concise key points (
             ],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=VideoAnalysis,
+                response_schema=GEMINI_VIDEO_SCHEMA,
             ),
         )
 
