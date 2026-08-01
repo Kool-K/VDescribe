@@ -356,34 +356,22 @@ def get_transcript(video_id: str) -> Optional[str]:
     """
     Fallback: fetch the YouTube transcript (captions) for a video.
     Works without downloading; returns timestamped text or None on failure.
+    Compatible with youtube-transcript-api v1.x (instance-based API).
     """
     if not TRANSCRIPT_API_AVAILABLE:
         return None
     try:
-        # Newer youtube-transcript-api (>=0.6.x) style
-        try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-            try:
-                transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB', 'en-IN'])
-            except Exception:
-                transcript = transcript_list.find_generated_transcript(['en'])
-            raw = transcript.fetch()
-        except AttributeError:
-            # Older API style — fetch directly
-            raw = YouTubeTranscriptApi.get_transcript(video_id)
+        ytt = YouTubeTranscriptApi()
+        transcript = ytt.fetch(video_id)
 
         lines = []
-        for entry in raw:
-            # Both old and new API return dict-like objects
-            if hasattr(entry, 'text'):
-                text = entry.text.replace('\n', ' ').strip()
-                secs = int(entry.start)
-            else:
-                text = entry.get('text', '').replace('\n', ' ').strip()
-                secs = int(entry.get('start', 0))
+        for snippet in transcript:
+            text = snippet.text.replace('\n', ' ').strip()
             if text:
+                secs = int(snippet.start)
                 mm, ss = divmod(secs, 60)
                 lines.append(f"[{mm:02d}:{ss:02d}] {text}")
+
         return '\n'.join(lines) if lines else None
     except Exception as e:
         print(f"Transcript API failed: {e}")
