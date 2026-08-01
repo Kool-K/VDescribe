@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>VDESCRIBE | AI-Powered Video Intelligence</title>
+    <meta name="description" content="VDescribe uses multimodal AI to analyze YouTube videos — both audio and visuals — delivering structured summaries, timestamped highlights, and exportable reports.">
+    <link rel="icon" type="image/png" href="/VDescribe_logo.png">
+    <link rel="apple-touch-icon" href="/VDescribe_logo.png">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+</head>
+
+<body class="bg-background text-on-surface min-h-screen flex flex-col">
+    <!-- TopAppBar -->
+    <header
+        class="bg-[#FACC15] dark:bg-[#FACC15] text-[#000000] dark:text-[#000000] font-['Space_Grotesk'] uppercase font-bold tracking-tighter docked full-width top-0 border-b-8 border-[#000000] flex justify-between items-center w-full px-6 py-4 z-50 sticky">
+        <div class="flex items-center gap-3">
+            <div class="brand-logo-backdrop">
+                <img src="/VDescribe_logo.png" alt="VDescribe Logo" class="h-10 w-10 object-contain">
+            </div>
+            <span class="text-2xl font-black text-[#000000] tracking-tighter">VDESCRIBE</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="hidden md:inline text-xs font-bold tracking-widest opacity-70">MULTIMODAL VIDEO INTELLIGENCE</span>
+        </div>
+    </header>
+    <main class="flex-grow">
+        <!-- Hero Section: Input Area -->
+        <section class="bg-primary-container px-6 py-16 md:py-24 border-b-[12px] border-on-background">
+            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
+                <div class="lg:col-span-7">
+                    <h1 class="text-5xl md:text-7xl font-black tracking-tighter uppercase mb-8 leading-[0.9]">
+                        Break the <span class="bg-on-background text-primary-container px-2">Noise.</span><br />Get the
+                        Core.
+                    </h1>
+                    <p class="text-xl font-bold uppercase mb-12 max-w-xl">
+                        High-speed video intelligence. No filler. No fluff. Just the raw data you need to dominate the
+                        conversation.
+                    </p>
+                </div>
+                <div
+                    class="lg:col-span-5 bg-surface p-1 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-4 border-on-background input-card">
+                    <div class="p-8 space-y-6">
+                        <div>
+                            <label class="block font-black uppercase text-sm mb-2 tracking-widest">YouTube URL</label>
+                            <input id="youtube-url"
+                                class="w-full bg-surface-container-high border-b-4 border-on-background p-4 font-mono focus:outline-none focus:bg-white transition-colors"
+                                placeholder="https://youtube.com/watch?v=..." type="text" />
+                        </div>
+                        <div class="flex flex-col gap-4">
+                            <label class="block font-black uppercase text-sm mb-2 tracking-widest">Output
+                                Language</label>
+                            <div class="grid gap-0 border-4 border-on-background grid-cols-3">
+                                <button id="lang-en" data-lang="English"
+                                    class="lang-btn bg-on-background text-white py-3 font-bold uppercase tracking-tighter transition-none">English</button>
+                                <button id="lang-hi" data-lang="Hindi"
+                                    class="lang-btn bg-surface hover:bg-surface-container-highest py-3 font-bold uppercase tracking-tighter transition-none">Hindi</button>
+                                <button id="lang-mr" data-lang="Marathi"
+                                    class="lang-btn bg-surface hover:bg-surface-container-highest py-3 font-bold uppercase tracking-tighter transition-none border-l-4 border-on-background">Marathi</button>
+                            </div>
+                        </div>
+                        <button id="summarize-btn"
+                            class="summarize-btn w-full bg-tertiary text-on-tertiary py-5 text-2xl font-black uppercase tracking-tighter hover:bg-on-background transition-none active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)]">
+                            Summarize
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Results Canvas -->
+        <section id="results-section" class="px-6 py-16 md:py-24 max-w-7xl mx-auto relative pt-8 mt-8">
+            <!-- Brutalist Loader -->
+            <div id="brutalist-loader" class="absolute inset-0 bg-[#FACC15] z-40 flex-col items-center justify-center border-[16px] border-on-background m-6" style="display: none;">
+                <span class="material-symbols-outlined text-9xl animate-spin mb-8" data-icon="bolt">bolt</span>
+                <h2 class="text-4xl md:text-6xl font-black uppercase tracking-tighter text-on-background text-center px-4">DECODING SIGNAL...</h2>
+                <p id="loader-status" class="text-lg font-bold uppercase tracking-widest mt-4 text-on-background/70 text-center">Downloading media...</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- Sidebar: Highlights -->
+                <div class="lg:col-span-4 space-y-8">
+                    <div class="bg-on-background text-surface p-8">
+                        <div class="flex items-center gap-3 mb-6">
+                            <span class="w-2 h-8 bg-primary-container"></span>
+                            <div>
+                                <p id="highlights-english-label" class="hidden text-xs font-black uppercase tracking-[0.2em] text-primary-container/80">Key Highlights</p>
+                                <h2 id="highlights-heading" class="text-3xl font-black uppercase tracking-tighter">Key Highlights</h2>
+                            </div>
+                        </div>
+                        <ul id="highlights-list" class="space-y-6 font-medium">
+                            <li class="flex gap-4 border-b border-surface/20 pb-4">
+                                <span class="text-primary-container font-black">01</span>
+                                <span>Initial market disruption through aggressive branding strategies.</span>
+                            </li>
+                            <li class="flex gap-4 border-b border-surface/20 pb-4">
+                                <span class="text-primary-container font-black">02</span>
+                                <span>The rejection of soft UI paradigms in modern editorial design.</span>
+                            </li>
+                            <li class="flex gap-4 border-b border-surface/20 pb-4">
+                                <span class="text-primary-container font-black">03</span>
+                                <span>Architectural use of high-contrast yellow as a functional anchor.</span>
+                            </li>
+                            <li class="flex gap-4">
+                                <span class="text-primary-container font-black">04</span>
+                                <span>Future projections for brutalist web experiences in 2025.</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-[#3B82F6] p-8 text-white border-4 border-on-background">
+                        <p id="quick-insight-english-label" class="hidden text-xs font-black uppercase tracking-[0.2em] text-white/80">Quick Insight</p>
+                        <h3 id="quick-insight-heading" class="font-black uppercase text-xl mb-4 italic">Quick Insight</h3>
+                        <p id="quick-insight-text" class="font-bold leading-tight uppercase">Visual speed is the new currency. Users process
+                            bold color blocks 40% faster than standard text layouts.</p>
+                    </div>
+                    <!-- Multimodal badge -->
+                    <div id="multimodal-badge" class="hidden bg-on-background text-primary-container p-4 border-4 border-primary-container">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-3xl">visibility</span>
+                            <div>
+                                <p class="font-black uppercase text-sm tracking-widest">Multimodal Analysis</p>
+                                <p class="text-surface text-xs font-medium mt-1">Both video frames & audio were analyzed</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Main Content: Detailed Summary -->
+                <div class="lg:col-span-8 flex flex-col">
+                    <div
+                        class="bg-white border-8 border-on-background p-8 md:p-12 relative">
+                        <div class="flex justify-between items-start mb-10">
+                            <div>
+                                <span
+                                    class="bg-tertiary text-white px-3 py-1 text-xs font-black uppercase mb-4 inline-block">Analysis
+                                    Complete</span>
+                                <p id="summary-english-label" class="hidden text-xs font-black uppercase tracking-[0.2em] text-on-background/60 mb-2">Detailed Summary</p>
+                                <h2 id="summary-heading" class="text-4xl md:text-5xl font-black uppercase tracking-tight leading-none">
+                                    Detailed Summary</h2>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="copy-btn"
+                                    class="action-btn bg-on-background text-surface p-4 flex items-center gap-2 hover:bg-tertiary transition-none active:translate-y-1"
+                                    title="Copy to clipboard">
+                                    <span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+                                    <span class="hidden md:inline font-bold uppercase text-sm tracking-widest">Copy</span>
+                                </button>
+                                <button id="export-md-btn"
+                                    class="action-btn bg-on-background text-surface p-4 flex items-center gap-2 hover:bg-[#3B82F6] transition-none active:translate-y-1"
+                                    title="Export as Markdown">
+                                    <span class="material-symbols-outlined" data-icon="download">download</span>
+                                    <span class="hidden md:inline font-bold uppercase text-sm tracking-widest">Export</span>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Embedded YouTube Player -->
+                        <div id="player-container" class="mb-8 hidden">
+                            <div class="aspect-video border-4 border-on-background shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-black overflow-hidden">
+                                <div id="yt-player"></div>
+                            </div>
+                            <h3 id="video-title" class="text-2xl font-black uppercase tracking-tight leading-tight mt-4"></h3>
+                        </div>
+                        <!-- Fallback static thumbnail (used when player can't load) -->
+                        <div id="video-metadata" class="mb-8 hidden">
+                            <img id="video-thumbnail" class="w-full aspect-video object-cover border-4 border-on-background shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-4" src="" alt="Video Thumbnail"/>
+                            <h3 id="video-title-fallback" class="text-2xl font-black uppercase tracking-tight leading-tight"></h3>
+                        </div>
+                        <div id="detailed-summary"
+                            class="prose prose-xl max-w-none text-on-background space-y-8 font-medium leading-relaxed">
+                            <p>
+                                This analysis covers the foundational shift in digital aesthetics presented in the
+                                video. The narrator argues that the current "SaaS-standard" look—defined by rounded
+                                corners, subtle shadows, and pastel gradients—is failing to capture user attention in an
+                                increasingly saturated attention economy.
+                            </p>
+                            <div class="flex gap-8 items-center py-4">
+                                <div class="h-[2px] bg-on-background flex-grow"></div>
+                                <span class="material-symbols-outlined text-4xl" data-icon="bolt">bolt</span>
+                                <div class="h-[2px] bg-on-background flex-grow"></div>
+                            </div>
+                            <p>
+                                The core thesis proposes <span class="bg-primary-container font-black px-1">"Editorial
+                                    Industrialism"</span> as the successor. This design philosophy leverages raw
+                                industrial elements: 0px radii, high-contrast black/yellow palettes, and aggressive
+                                typography. The video details how these choices create a "visual strobe" effect that
+                                forces the eye to engage with the content rather than simply scanning past it.
+                            </p>
+                            <p>
+                                Key metrics cited include a 22% increase in retention when using high-contrast
+                                asymmetric layouts versus centered, low-contrast alternatives. The conclusion calls for
+                                a "Manifesto of Sharpness," urging designers to stop hiding behind softness and embrace
+                                the kinetic energy of raw geometry.
+                            </p>
+                        </div>
+                        </div>
+                    <section class="mt-10 bg-primary-container border-8 border-on-background p-8 md:p-10">
+                        <div class="flex items-center gap-3 mb-8">
+                            <span class="w-2 h-9 bg-[#3B82F6]"></span>
+                            <div>
+                                <p id="key-points-english-label" class="hidden text-xs font-black uppercase tracking-[0.2em] text-on-background/70">Essential Takeaways</p>
+                                <h2 id="key-points-heading" class="text-3xl md:text-4xl font-black uppercase tracking-tight leading-none">Key Points</h2>
+                            </div>
+                        </div>
+                        <ul id="key-points-list" class="grid gap-4 md:grid-cols-2">
+                            <li class="key-point-item">
+                                <span class="key-point-number">01</span>
+                                <span>Clear, standalone takeaways from the video will appear here.</span>
+                            </li>
+                            <li class="key-point-item">
+                                <span class="key-point-number">02</span>
+                                <span>They complement the timeline highlights and detailed summary.</span>
+                            </li>
+                        </ul>
+                    </section>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <!-- Footer -->
+    <footer
+        class="bg-[#000000] dark:bg-[#000000] text-[#FACC15] dark:text-[#FACC15] font-['Space_Grotesk'] text-sm font-bold uppercase docked full-width bottom-0 flex flex-col md:flex-row justify-between items-center w-full px-8 py-12 gap-6 no-print">
+        <div class="text-lg font-black text-[#FACC15]">VDESCRIBE</div>
+        <div class="flex flex-wrap justify-center gap-8">
+            <a class="text-[#F9F9F9] hover:text-[#3B82F6] transition-none"
+                href="https://kool-k.github.io/Ketaki_Kulkarni_Portfolio/">Built by Ketaki Kulkarni</a>
+        </div>
+        <div class="text-center md:text-right opacity-80">
+            ©2026 VDESCRIBE. AI-Powered Video Summarization Tool.
+        </div>
+    </footer>
+
+    <!-- YouTube Iframe API (loaded async) -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+
+</html>

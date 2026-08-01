@@ -1,0 +1,203 @@
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, .brand-font {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.brand-logo-backdrop {
+    display: grid;
+    width: 3.25rem;
+    height: 3.25rem;
+    place-items: center;
+    flex: 0 0 auto;
+    background: #000;
+    border: 2px solid #fff;
+    box-shadow: 3px 3px 0 #000;
+}
+
+.brand-logo-backdrop img {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.key-point-item {
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+    min-height: 5rem;
+    padding: 1rem;
+    border: 3px solid #1b1b1b;
+    background: #fff;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.key-point-number {
+    flex: 0 0 auto;
+    color: #b91a24;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 900;
+}
+
+/* --- Micro-animations & Hover Effects --- */
+
+.input-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 10px 10px 0px 0px rgba(0,0,0,1);
+}
+
+.summarize-btn {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.summarize-btn:hover:not(:disabled) {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px 0px rgba(0,0,0,0.4);
+}
+
+.summarize-btn:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 0px 0px 0px 0px rgba(0,0,0,0.4);
+}
+
+.action-btn {
+    transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+.action-btn:active {
+    transform: translateY(2px);
+}
+
+.highlight-item {
+    transition: background-color 0.15s ease, padding-left 0.15s ease;
+}
+
+.highlight-item:hover {
+    background-color: rgba(255,255,255,0.05);
+    padding-left: 8px;
+}
+
+.timestamp-pill {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.timestamp-pill:hover {
+    transform: scale(1.05);
+    box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.5);
+}
+
+.timestamp-pill:active {
+    transform: scale(0.95);
+}
+
+.lang-btn {
+    transition: background-color 0.1s ease;
+}
+
+/* --- YouTube Player Responsive --- */
+
+#player-container .aspect-video iframe {
+    width: 100%;
+    height: 100%;
+}
+
+/* --- Print Styles (for PDF Export) --- */
+
+@media print {
+    /* Hide interactive elements */
+    header,
+    footer,
+    .no-print,
+    #brutalist-loader,
+    #multimodal-badge,
+    .summarize-btn,
+    .lang-btn,
+    .action-btn,
+    #youtube-url,
+    #player-container,
+    #copy-btn,
+    #export-md-btn,
+    label,
+    .input-card {
+        display: none !important;
+    }
+
+    /* Hide the hero input section entirely */
+    section.bg-primary-container {
+        display: none !important;
+    }
+
+    /* Reset layout for print */
+    body {
+        background: white !important;
+        color: black !important;
+        font-size: 12pt;
+    }
+
+    main {
+        padding: 0 !important;
+    }
+
+    #results-section {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    #results-section > div {
+        display: block !important;
+    }
+
+    /* Style the highlights for print */
+    .bg-on-background {
+        background: #f0f0f0 !important;
+        color: black !important;
+    }
+
+    .text-primary-container {
+        color: #735c00 !important;
+    }
+
+    /* Remove decorative borders and shadows */
+    * {
+        box-shadow: none !important;
+        border-color: #ccc !important;
+    }
+
+    .border-8 {
+        border-width: 2px !important;
+    }
+
+    .border-4 {
+        border-width: 1px !important;
+    }
+
+    /* Page breaks */
+    .lg\:col-span-4 {
+        page-break-after: avoid;
+    }
+
+    .lg\:col-span-8 {
+        page-break-before: avoid;
+    }
+
+    h2 {
+        page-break-after: avoid;
+    }
+
+    p {
+        orphans: 3;
+        widows: 3;
+    }
+}

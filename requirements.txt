@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-dotenv
+pydantic
+yt-dlp
+yt-dlp-ejs
+google-genai
+requests
+python-multipart
