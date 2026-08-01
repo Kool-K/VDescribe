@@ -5,7 +5,7 @@ import re
 import time
 import random
 from urllib.parse import urlparse, parse_qs
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
