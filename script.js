@@ -618,6 +618,31 @@ if (chatToggleBtn && chatPanel && closeChatBtn) {
     });
 }
 
+function renderMarkdown(text) {
+    // Escape HTML to prevent XSS
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Bold: **text**
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic: *text*
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Inline code: `code`
+    html = html.replace(/`([^`]+)`/g, '<code class="bg-on-background/10 px-1 rounded font-mono text-xs">$1</code>');
+    // Numbered list items: "1. text" at the start of a line
+    html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="ml-4 list-decimal">$2</li>');
+    // Bullet list items: "- text" or "* text"
+    html = html.replace(/^[-*]\s+(.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
+    // Wrap consecutive <li> tags in a <ul>
+    html = html.replace(/(<li[^>]*>[\s\S]*?<\/li>)/g, '<ul class="space-y-1 my-1">$1</ul>');
+    // Line breaks
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
+}
+
 function appendMessage(role, text) {
     const chatHistoryEl = document.getElementById('chat-history');
     if (!chatHistoryEl) return;
@@ -631,11 +656,12 @@ function appendMessage(role, text) {
     const bubble = document.createElement('div');
     // Brutalist styling for chat bubbles
     if (role === 'user') {
-        bubble.className = 'bg-primary-container border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-on-background';
+        bubble.className = 'bg-primary-container border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-on-background max-w-[85%]';
+        bubble.innerText = text; // user input stays as plain text (safe)
     } else {
-        bubble.className = 'bg-surface border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]';
+        bubble.className = 'bg-surface border-2 border-on-background p-3 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] max-w-[85%] leading-relaxed';
+        bubble.innerHTML = renderMarkdown(text); // AI output: render markdown
     }
-    bubble.innerText = text;
 
     wrapper.append(label, bubble);
     chatHistoryEl.appendChild(wrapper);
