@@ -91,6 +91,7 @@ VDescribe/
 ├── index.html           # Brutalist UI frontend with floating Chat widget
 ├── script.js            # Client logic, rendering, player, chat & markdown handlers
 ├── styles.css           # Custom styles & brutalist styling
+├── downloads/          # Temporary local media storage (ignored by git)
 ├── requirements.txt     # Python dependencies
 ├── .env                 # Local API keys and cookies (ignored by git)
 └── .gitignore
