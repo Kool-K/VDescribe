@@ -7,15 +7,20 @@
 
 ## Features
 
+- **Interactive "Chat with Video" (Multimodal RAG)** — Floating brutalist chat widget that lets users ask questions directly about the video's content (visuals & audio) after summarization.
+  - Powered by Gemini multimodal capabilities (persists uploaded media for 48 hours).
+  - Strict context instruction: answers strictly based on video contents.
+  - Built-in Markdown renderer supporting bold, italics, inline code, and lists.
+  - Multi-language translation support for chat questions & answers.
 - **True Multimodal AI Analysis** — Automatically downloads video/audio via `yt-dlp` and processes it with Google's modern `google-genai` SDK:
   - **Videos $\le$ 30 mins**: Downloads low-res MP4 for true visual + audio multimodal analysis (inspecting slides, code, diagrams, and spoken audio).
   - **Videos > 30 mins**: Automatically falls back to audio-only processing to optimize speed and bandwidth.
 - **Bot Bypass via Cookies** — Authenticates as a real user via a `YOUTUBE_COOKIES` environment variable to bypass YouTube's bot detection.
-- **Resilient AI Model Retry & Fallback** — Uses model fallback (`gemini-3.6-flash` $\rightarrow$ `gemini-3.5-flash-lite`) with exponential backoff and jitter to seamlessly handle rate limits.
+- **Resilient AI Model Retry & Fallback** — Uses model fallback (`GEMINI_MODELS` list) with exponential backoff and jitter to seamlessly handle rate limits.
 - **Multilingual Output** — Supports English, Hindi (`hi-IN`), and Marathi (`mr-IN`) translations via Sarvam AI API.
-- **Structured Output (Pydantic & JSON Schema)**:
-  - **Timestamped Highlights** — Exactly 4 key moments with `MM:SS` timestamps.
-  - **Key Points** — 5 concise, standalone takeaways complementing the highlights.
+- **Structured Output (JSON Schema)**:
+  - **Timestamped Highlights** — Key moments with `MM:SS` timestamps.
+  - **Key Points** — Concise, standalone takeaways complementing the highlights.
   - **Detailed Summary** — Multi-paragraph HTML formatted summary.
   - **Quick Insight** — 1-sentence core takeaway.
 - **Embedded Player** — View the summarized video directly in the app and click timestamps to seek to the exact moment.
@@ -34,7 +39,7 @@
 ## Prerequisites
 
 - **Python 3.10+**
-- **FFmpeg** — Required for audio extraction. ([Install Guide](https://ffmpeg.org/download.html))
+- **FFmpeg** — Required for audio/video extraction. ([Install Guide](https://ffmpeg.org/download.html))
 - **API Keys & Cookies**:
   - `GEMINI_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey)
   - `SARVAM_API_KEY` — [Sarvam AI](https://www.sarvam.ai/)
@@ -60,7 +65,7 @@ pip install -r requirements.txt
 # 4. Create a .env file with your API keys and YouTube Cookies
 cat > .env << 'EOF'
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODELS=gemini-3.6-flash,gemini-3.5-flash-lite
+GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
 SARVAM_API_KEY=your_sarvam_api_key
 YOUTUBE_API_KEY=your_youtube_api_key
 
@@ -73,7 +78,7 @@ YOUTUBE_COOKIES="# Netscape HTTP Cookie File
 EOF
 
 # 5. Run the server
-python main.py
+./venv/bin/python main.py
 ```
 
 The app will be available at **http://localhost:8000**.
@@ -82,9 +87,9 @@ The app will be available at **http://localhost:8000**.
 
 ```
 VDescribe/
-├── main.py              # FastAPI backend (multimodal AI, retries, translation)
-├── index.html           # Brutalist UI frontend
-├── script.js            # Client logic, rendering, player & timestamp handlers
+├── main.py              # FastAPI backend (multimodal AI, retries, RAG chat endpoint, translation)
+├── index.html           # Brutalist UI frontend with floating Chat widget
+├── script.js            # Client logic, rendering, player, chat & markdown handlers
 ├── styles.css           # Custom styles & brutalist styling
 ├── requirements.txt     # Python dependencies
 ├── .env                 # Local API keys and cookies (ignored by git)
