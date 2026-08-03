@@ -11,3 +11,9 @@ venv/
 ffmpeg/
 .vscode/
 render
+downloads/
+*.vtt
+*.mp4
+*.webm
+*.m4a
+*.mp3

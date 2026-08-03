@@ -122,8 +122,8 @@ def write_cookies_file() -> Optional[str]:
     """
     if not YOUTUBE_COOKIES:
         return None
-    cookies_path = os.path.join("temp", "yt_cookies.txt")
-    os.makedirs("temp", exist_ok=True)
+    cookies_path = os.path.join("downloads", "yt_cookies.txt")
+    os.makedirs("downloads", exist_ok=True)
     with open(cookies_path, "w") as f:
         f.write(YOUTUBE_COOKIES)
     return cookies_path
@@ -164,7 +164,7 @@ def process_video_multimodal(video_id: str, cookies_path: Optional[str] = None):
     If YOUTUBE_COOKIES is set, passes cookies to yt-dlp to authenticate and bypass bot detection.
     Returns (uploaded_file, local_path, is_video).
     """
-    temp_dir = "temp"
+    temp_dir = "downloads"
     os.makedirs(temp_dir, exist_ok=True)
 
     duration = get_video_duration(video_id, cookies_path)
