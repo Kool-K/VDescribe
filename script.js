@@ -631,13 +631,26 @@ function renderMarkdown(text) {
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
     // Inline code: `code`
     html = html.replace(/`([^`]+)`/g, '<code class="bg-on-background/10 px-1 rounded font-mono text-xs">$1</code>');
+    
     // Numbered list items: "1. text" at the start of a line
-    html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="ml-4 list-decimal">$2</li>');
+    html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<li class="list-decimal" value="$1">$2</li>');
     // Bullet list items: "- text" or "* text"
-    html = html.replace(/^[-*]\s+(.+)$/gm, '<li class="ml-4 list-disc">$1</li>');
-    // Wrap consecutive <li> tags in a <ul>
-    html = html.replace(/(<li[^>]*>[\s\S]*?<\/li>)/g, '<ul class="space-y-1 my-1">$1</ul>');
-    // Line breaks
+    html = html.replace(/^[-*]\s+(.+)$/gm, '<li class="list-disc">$1</li>');
+    
+    // Group consecutive <li> tags into <ol> or <ul>
+    html = html.replace(/(?:<li[^>]*>[\s\S]*?<\/li>\n*)+/g, function(match) {
+        // Strip trailing newlines to avoid extra <br> at the end of the list
+        const cleanMatch = match.replace(/\n+$/g, '');
+        // Remove newlines strictly between <li> tags so they don't become <br>
+        const tightlyPacked = cleanMatch.replace(/<\/li>\n+<li/g, '</li><li');
+        
+        if (tightlyPacked.includes('list-decimal')) {
+            return '<ol class="space-y-1 my-2 ml-4">' + tightlyPacked + '</ol>';
+        }
+        return '<ul class="space-y-1 my-2 ml-4">' + tightlyPacked + '</ul>';
+    });
+
+    // Line breaks for remaining text
     html = html.replace(/\n/g, '<br>');
 
     return html;
