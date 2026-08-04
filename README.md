@@ -15,7 +15,7 @@
 - **True Multimodal AI Analysis** — Automatically downloads video/audio via `yt-dlp` and processes it with Google's modern `google-genai` SDK:
   - **Videos $\le$ 30 mins**: Downloads low-res MP4 for true visual + audio multimodal analysis (inspecting slides, code, diagrams, and spoken audio).
   - **Videos > 30 mins**: Automatically falls back to audio-only processing to optimize speed and bandwidth.
-- **Bot Bypass via Cookies** — Authenticates as a real user via a `YOUTUBE_COOKIES` environment variable to bypass YouTube's bot detection.
+- **Bot Bypass via Cookies & Auto-Fallback** — Authenticates via a `YOUTUBE_COOKIES` environment variable to bypass YouTube bot detection, with an automatic fallback to local Chrome browser cookies if unconfigured.
 - **Resilient AI Model Retry & Fallback** — Uses model fallback (`GEMINI_MODELS` list) with exponential backoff and jitter to seamlessly handle rate limits.
 - **Multilingual Output** — Supports English, Hindi (`hi-IN`), and Marathi (`mr-IN`) translations via Sarvam AI API.
 - **Structured Output (JSON Schema)**:
@@ -44,7 +44,7 @@
   - `GEMINI_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey)
   - `SARVAM_API_KEY` — [Sarvam AI](https://www.sarvam.ai/)
   - `YOUTUBE_API_KEY` *(optional)* — [Google Cloud Console](https://console.cloud.google.com/)
-  - `YOUTUBE_COOKIES` — Export your YouTube cookies using a browser extension (like *Get cookies.txt LOCALLY*) to bypass bot detection.
+  - `YOUTUBE_COOKIES` *(optional)* — Export your YouTube cookies using a browser extension (like *Get cookies.txt LOCALLY*). If omitted, `yt-dlp` will automatically attempt to read cookies from your local Chrome browser.
 
 ## Local Development (Required)
 
