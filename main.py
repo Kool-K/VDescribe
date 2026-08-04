@@ -147,6 +147,8 @@ def get_video_duration(video_id: str, cookies_path: Optional[str] = None) -> Opt
         }
         if cookies_path:
             ydl_opts['cookiefile'] = cookies_path
+        else:
+            ydl_opts['cookiesfrombrowser'] = ('chrome',)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -184,6 +186,8 @@ def process_video_multimodal(video_id: str, cookies_path: Optional[str] = None):
     }
     if cookies_path:
         common_opts['cookiefile'] = cookies_path
+    else:
+        common_opts['cookiesfrombrowser'] = ('chrome',)
 
     try:
         if use_video:
